@@ -6,7 +6,7 @@ class KAnonymizer:
 
     def __init__(self,
                  dataset:pd.DataFrame, # Dataset que será anonimizado
-                 quasi_identifier:list[str],
+                 quasi_identifier:list[str]= None,
                  sensitivity_features:list[str]= None # Lista de features sensiveis a serem retiradas
                  ):
         #Es
@@ -21,6 +21,8 @@ class KAnonymizer:
         # Captura as generalizações de regiao
         self._general_region = pd.DataFrame(index=dataset.index)
         self._general_region[['city', 'country', 'sub-region', 'region']] = dataset['Region'].str.split(';',expand=True)    
+        self._anonymizedData = self._anonymizedData.drop(['Region'],axis=1)
+        self._anonymizedData = pd.concat([self._anonymizedData, self._general_region], axis=1)
 
         #Captura as generalizações para begindate
         
@@ -28,8 +30,10 @@ class KAnonymizer:
         self._general_begin_date['year'] = dataset['BeginDate']
         self._general_begin_date['decade']= dataset['BeginDate'].apply(KAnonymizer.year4decade)
         self._general_begin_date['century'] = dataset['BeginDate'].apply(KAnonymizer.year4century)
+        self._anonymizedData = self._anonymizedData.drop(['BeginDate'],axis=1)
+        self._anonymizedData = pd.concat([self._anonymizedData, self._general_begin_date], axis=1)
 
-        print(self._general_begin_date)
+#         print(self._general_begin_date)
 
     
     #Setters e Getters
