@@ -1,15 +1,17 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class KAnonymizer:
 
     def __init__(self,
                  dataset:pd.DataFrame, # Dataset que será anonimizado
-                 quasi_identifier:list[str],
-                 sensitivity_features:list[str]= None # Lista de features sensiveis a serem retiradas
+                 quasi_identifier:list[str]= None, # Semi identificadores
+                 sensitivity_features:list[str]= None, # Lista de features sensiveis a serem retiradas
+                 k =None
                  ):
-        #Es
+        
         self.__original_data = dataset
         self.__anonymized_data = dataset.copy()
 
@@ -21,15 +23,26 @@ class KAnonymizer:
         # Captura as generalizações de regiao
         self._general_region = pd.DataFrame(index=dataset.index)
         self._general_region[['city', 'country', 'sub-region', 'region']] = dataset['Region'].str.split(';',expand=True)    
+        #self._anonymizedData = self._anonymizedData.drop(['Region'],axis=1)
+        #self._anonymizedData = pd.concat([self._anonymizedData, self._general_region], axis=1)
 
         #Captura as generalizações para begindate
-        
         self._general_begin_date = pd.DataFrame(index=dataset.index,columns=['year','decade','century'])
         self._general_begin_date['year'] = dataset['BeginDate']
         self._general_begin_date['decade']= dataset['BeginDate'].apply(KAnonymizer.year4decade)
         self._general_begin_date['century'] = dataset['BeginDate'].apply(KAnonymizer.year4century)
+        #self._anonymizedData = self._anonymizedData.drop(['BeginDate'],axis=1)
+        #self._anonymizedData = pd.concat([self._anonymizedData, self._general_begin_date], axis=1)
+        
+        self._anonymizedData['BeginDate'] = self._general_begin_date['year']
+        self._anonymizedData['Region']= self._general_region['city']
+        
+        self._generalization_level ={"BeginDate":0,
+                                     "Region":0}
+        
+        self.__original_data = self._anonymizedData
 
-        print(self._general_begin_date)
+        
 
     
     #Setters e Getters
@@ -71,11 +84,82 @@ class KAnonymizer:
     #Desfazer as alterações feitas no dataset
     def undoAlterations(self):
         self._anonymizedData = self.__original_data.copy()
+        self._generalization_level ={"BeginDate":0,
+                                     "Region":0}
     
-    def verifyKAnonymity(self,):
+    def verifyKAnonymity(self,k):
 
-        count_group = self._anonymizedData.groupby([self._quasi_identifier])[self._quasi_identifier[0]].count()
-        print(count_group)
+        count_group = self._anonymizedData.groupby(self._quasi_identifier)[self._quasi_identifier[0]].count()
+
+        print(count_group[count_group<k])
+        smallest_cluster =np.min(count_group)
+
+        print(f"O menor cluster encontrado para {k} foi {smallest_cluster}")
+        
+        return smallest_cluster >=k
+    
+    def setK(self,k):
+        self.undoAlterations()
+        
+        while (not self.verifyKAnonymity(k)) and (self._generalization_level['Region']<4) and (self._generalization_level['BeginDate']<3):
+            
+            self._anonymizedData['BeginDate'] = self._general_begin_date.iloc[:,self._generalization_level['BeginDate']]
+            self._anonymizedData['Region'] = self._general_region.iloc[:,self._generalization_level['Region']]
+            
+            smallest_level_key =min(self._generalization_level.items(),key=lambda x:x[1])
+
+            if smallest_level_key[0] == 'BeginDate' and smallest_level_key[1]==2:
+                self._generalization_level['Region']+=1
+            else:
+                self._generalization_level[smallest_level_key[0]]+=1
+            
+        if self.verifyKAnonymity(k):
+            print(f"Satisfaz {k}-Anonimato")
+            self.getAnonymizedData().to_csv(f"{k}AnonArtists.csv")
+            self._anonymizedData.groupby(self._quasi_identifier)[self._quasi_identifier[0]].count().to_csv(f"{k}AnonArtistsCont.csv")
+            print(self.getMetrics(k))
+
+    def getMetrics(self,k):
+        metrics = {'precision':0,
+                   'mean':0}
+        
+        classes_size =self._anonymizedData.groupby(self._quasi_identifier)[self._quasi_identifier[0]].size()
+        metrics['mean']=np.mean(classes_size)
+        
+        if len(classes_size)== 0:
+            metrics['precision']=0
+        else:
+            metrics['precision']=len(classes_size[classes_size>=k])/len(classes_size)
+
+        return metrics
+        
+    
+    def getValuesOfGeneralization(self,beginDate,region):
+
+        aux =pd.concat([self._general_region.iloc[:,region],self._general_begin_date.iloc[:,beginDate]],axis=1)
+
+        print(aux)
+        return aux.groupby([*aux.columns])[aux.columns[0]].count()
+    
+    def getHistogramGroups(self):
+
+        group =self._anonymizedData.groupby(self._quasi_identifier)[self._quasi_identifier[0]].size()
+
+        return [[idx ,group.loc[*idx]] for idx in group.index]
+
+    def plotHistogram(self,file_name):
+
+        plt.figure(figsize=(18, 6))
+
+        frequency = self.getHistogramGroups()
+            
+        plt.bar([ f'{x[0][0],x[0][1]}' for x in frequency],[ x[1] for x in frequency])
+        
+        plt.xticks(rotation=90)
+        
+        plt.savefig(file_name)
+        plt.show()
+
 
     @staticmethod
     def year4decade(year):
@@ -105,4 +189,8 @@ class KAnonymizer:
             century += 1
         
         return century
+    
+        
+        
+        
         
