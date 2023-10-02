@@ -138,7 +138,7 @@ class KAnonymizer:
 
     def plotHistogram(self,file_name):
 
-        plt.figure(figsize=(12,25))
+        plt.figure(figsize=(18,22))
 
         frequency = self.getHistogramGroups()
             
