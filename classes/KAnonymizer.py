@@ -6,8 +6,9 @@ class KAnonymizer:
 
     def __init__(self,
                  dataset:pd.DataFrame, # Dataset que será anonimizado
-                 quasi_identifier:list[str],
-                 sensitivity_features:list[str]= None # Lista de features sensiveis a serem retiradas
+                 quasi_identifier:list[str]= None,
+                 sensitivity_features:list[str]= None, # Lista de features sensiveis a serem retiradas
+                 k =None
                  ):
         #Es
         self.__original_data = dataset
@@ -21,15 +22,23 @@ class KAnonymizer:
         # Captura as generalizações de regiao
         self._general_region = pd.DataFrame(index=dataset.index)
         self._general_region[['city', 'country', 'sub-region', 'region']] = dataset['Region'].str.split(';',expand=True)    
+        #self._anonymizedData = self._anonymizedData.drop(['Region'],axis=1)
+        #self._anonymizedData = pd.concat([self._anonymizedData, self._general_region], axis=1)
 
         #Captura as generalizações para begindate
-        
         self._general_begin_date = pd.DataFrame(index=dataset.index,columns=['year','decade','century'])
         self._general_begin_date['year'] = dataset['BeginDate']
         self._general_begin_date['decade']= dataset['BeginDate'].apply(KAnonymizer.year4decade)
         self._general_begin_date['century'] = dataset['BeginDate'].apply(KAnonymizer.year4century)
+        #self._anonymizedData = self._anonymizedData.drop(['BeginDate'],axis=1)
+        #self._anonymizedData = pd.concat([self._anonymizedData, self._general_begin_date], axis=1)
+        
+        self._anonymizedData['BeginDate'] = self._general_begin_date['Year']
+        
+        self._generalization_level ={"BeginDate":0,
+                                     "Region":0}
 
-        print(self._general_begin_date)
+#         print(self._general_begin_date)
 
     
     #Setters e Getters
@@ -72,11 +81,46 @@ class KAnonymizer:
     def undoAlterations(self):
         self._anonymizedData = self.__original_data.copy()
     
-    def verifyKAnonymity(self,):
+    def verifyKAnonymity(self,k):
 
-        count_group = self._anonymizedData.groupby([self._quasi_identifier])[self._quasi_identifier[0]].count()
-        print(count_group)
+        count_group = self._anonymizedData.groupby(self._quasi_identifier)[self._quasi_identifier[0]].count()
 
+        
+        smallest_cluster =np.min(count_group)
+        
+        return smallest_cluster >=k
+    
+    def setK(self,k):
+        
+        
+        while not self.verifyKAnonymity(k):
+            
+            smallest_level_key =min(self._generalization_level.items(),key=lambda x:x[1])
+            self._generalization_level[smallest_level_key]+=1
+            
+            group = self._anonymizedData.groupby([])[self._quasi_identifier[0]].count()
+            
+            novos_val_a_sub = group[group < k].index
+            
+            for (city, century) in novos_val_a_sub:
+                novo_valor_city = df.loc[(df['city'] == city) & (df['century'] == century), 'country'].values[0]
+                print(city,novo_valor_city)
+                df.loc[(df['city'] == city) & (df['century'] == century), 'city'] = novo_valor_city
+
+            
+            
+            
+            
+            
+            
+            
+
+            
+        
+        
+        pass
+        
+        
     @staticmethod
     def year4decade(year):
 
@@ -105,4 +149,8 @@ class KAnonymizer:
             century += 1
         
         return century
+    
+        
+        
+        
         
