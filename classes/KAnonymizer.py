@@ -23,16 +23,12 @@ class KAnonymizer:
         # Captura as generalizações de regiao
         self._general_region = pd.DataFrame(index=dataset.index)
         self._general_region[['city', 'country', 'sub-region', 'region']] = dataset['Region'].str.split(';',expand=True)    
-        #self._anonymizedData = self._anonymizedData.drop(['Region'],axis=1)
-        #self._anonymizedData = pd.concat([self._anonymizedData, self._general_region], axis=1)
 
         #Captura as generalizações para begindate
         self._general_begin_date = pd.DataFrame(index=dataset.index,columns=['year','decade','century'])
         self._general_begin_date['year'] = dataset['BeginDate']
         self._general_begin_date['decade']= dataset['BeginDate'].apply(KAnonymizer.year4decade)
         self._general_begin_date['century'] = dataset['BeginDate'].apply(KAnonymizer.year4century)
-        #self._anonymizedData = self._anonymizedData.drop(['BeginDate'],axis=1)
-        #self._anonymizedData = pd.concat([self._anonymizedData, self._general_begin_date], axis=1)
         
         self._anonymizedData['BeginDate'] = self._general_begin_date['year']
         self._anonymizedData['Region']= self._general_region['city']
@@ -42,9 +38,6 @@ class KAnonymizer:
         
         self.__original_data = self._anonymizedData
 
-        
-
-    
     #Setters e Getters
 
     @property
@@ -54,7 +47,6 @@ class KAnonymizer:
     @_anonymizedData.setter
     def _anonymizedData(self,new_data)->pd.DataFrame:
         self.__anonymized_data =new_data
-
 
     #Retorna o dataset anonimizado.
     #Metodo usado pelo usuário
@@ -91,13 +83,11 @@ class KAnonymizer:
 
         count_group = self._anonymizedData.groupby(self._quasi_identifier)[self._quasi_identifier[0]].count()
 
-        print(count_group[count_group<k])
         smallest_cluster =np.min(count_group)
-
-        print(f"O menor cluster encontrado para {k} foi {smallest_cluster}")
         
         return smallest_cluster >=k
     
+    #Aplica a k-anonimização
     def setK(self,k):
         self.undoAlterations()
         
@@ -134,12 +124,11 @@ class KAnonymizer:
         return metrics
         
     
-    def getValuesOfGeneralization(self,beginDate,region):
+    def getValuesOfGeneralization(self,beginDate=2,region=3):
 
-        aux =pd.concat([self._general_region.iloc[:,region],self._general_begin_date.iloc[:,beginDate]],axis=1)
+        
 
-        print(aux)
-        return aux.groupby([*aux.columns])[aux.columns[0]].count()
+        return [self._general_begin_date.iloc[:,beginDate].unique(),self._general_region.iloc[:,region].unique()]
     
     def getHistogramGroups(self):
 
@@ -149,13 +138,13 @@ class KAnonymizer:
 
     def plotHistogram(self,file_name):
 
-        plt.figure(figsize=(18, 6))
+        plt.figure(figsize=(12,25))
 
         frequency = self.getHistogramGroups()
             
         plt.bar([ f'{x[0][0],x[0][1]}' for x in frequency],[ x[1] for x in frequency])
         
-        plt.xticks(rotation=90)
+        plt.xticks(rotation=90,fontsize=6)
         
         plt.savefig(file_name)
         plt.show()
