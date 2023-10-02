@@ -33,12 +33,14 @@ class KAnonymizer:
         #self._anonymizedData = self._anonymizedData.drop(['BeginDate'],axis=1)
         #self._anonymizedData = pd.concat([self._anonymizedData, self._general_begin_date], axis=1)
         
-        self._anonymizedData['BeginDate'] = self._general_begin_date['Year']
+        self._anonymizedData['BeginDate'] = self._general_begin_date['year']
+        self._anonymizedData['Region']= self._general_region['city']
         
         self._generalization_level ={"BeginDate":0,
                                      "Region":0}
 
-#         print(self._general_begin_date)
+        print(self._general_begin_date)
+        print(self._general_region)
 
     
     #Setters e Getters
@@ -85,40 +87,33 @@ class KAnonymizer:
 
         count_group = self._anonymizedData.groupby(self._quasi_identifier)[self._quasi_identifier[0]].count()
 
-        
+        print(count_group)
         smallest_cluster =np.min(count_group)
+
+        print(f"O menor cluster encontrado para {k} foi {smallest_cluster}")
         
         return smallest_cluster >=k
     
     def setK(self,k):
         
-        
-        while not self.verifyKAnonymity(k):
+        while (not self.verifyKAnonymity(k)) and (self._generalization_level['Region']<4) and (self._generalization_level['BeginDate']<3):
+            
+            self._anonymizedData['BeginDate'] = self._general_begin_date.iloc[:,self._generalization_level['BeginDate']]
+            self._anonymizedData['Region'] = self._general_region.iloc[:,self._generalization_level['Region']]
             
             smallest_level_key =min(self._generalization_level.items(),key=lambda x:x[1])
-            self._generalization_level[smallest_level_key]+=1
-            
-            group = self._anonymizedData.groupby([])[self._quasi_identifier[0]].count()
-            
-            novos_val_a_sub = group[group < k].index
-            
-            for (city, century) in novos_val_a_sub:
-                novo_valor_city = df.loc[(df['city'] == city) & (df['century'] == century), 'country'].values[0]
-                print(city,novo_valor_city)
-                df.loc[(df['city'] == city) & (df['century'] == century), 'city'] = novo_valor_city
 
-            
-            
-            
-            
-            
-            
-            
+            print(self._anonymizedData)
 
+            if smallest_level_key[0] == 'BeginDate' and smallest_level_key[1]==2:
+                self._generalization_level['Region']+=1
+            else:
+                self._generalization_level[smallest_level_key[0]]+=1
             
-        
-        
-        pass
+        if self.verifyKAnonymity(k):
+            print(f"Satisfaz {k}-Anonimato")
+            self.getAnonymizedData().to_csv(f"{k}AnonArtists.csv")
+            
         
         
     @staticmethod

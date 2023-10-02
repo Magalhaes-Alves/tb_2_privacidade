@@ -6,9 +6,12 @@ from classes.KAnonymizer import KAnonymizer
 ds = pd.read_csv(filepath_or_buffer='Artists-Pseudo-02.csv',sep=',')
 
 sensitivity_features = [i  for i in ds.columns if i not in ['Region','BeginDate','Income ($)']] 
-anonymizer = KAnonymizer(ds,sensitivity_features)
+anonymizer = KAnonymizer(ds,['Region','BeginDate'],sensitivity_features)
 
-while True:
+anonymizer.setK(2)
+
+
+""" while True:
 
     print("Niveis de Generalização para Atributo BeginDate {0,1,2}:")
     beginDate_level = int(input("Selecione o nível de Generalização de BeginDate"))
@@ -33,7 +36,7 @@ while True:
     again = str("Deseja continuar? [y/n]").strip().lower()[0]
     
     if again =='n':
-        break
+        break """
         
     
     
